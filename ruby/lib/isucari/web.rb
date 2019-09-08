@@ -201,7 +201,7 @@ module Isucari
                  parent_categories.category_name AS parent_c_category_name
           FROM `items`
           LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
-          LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`parent_id`
+          LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
           LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
           WHERE `status` IN (?, ?)
             AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?))
