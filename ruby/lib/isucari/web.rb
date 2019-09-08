@@ -158,6 +158,24 @@ module Isucari
         }
       end
 
+      # '/users/transactions' 用
+      def get_seller_from_item(item)
+        {
+          'id' => item['seller_id'],
+          'account_name' => item['seller_u_account_name'],
+          'num_sell_items' => item['seller_u_num_sell_items'],
+        }
+      end
+
+      # '/users/transactions' 用
+      def get_buyer_from_item(item)
+        {
+          'id' => item['buyer_id'],
+          'account_name' => item['buyer_u_account_name'],
+          'num_sell_items' => item['buyer_u_num_sell_items'],
+        }
+      end
+
       def body_params
         @body_params ||= JSON.parse(request.body.tap(&:rewind).read)
       end
@@ -373,13 +391,16 @@ module Isucari
         begin
           sql = <<-EOS
             SELECT items.*,
-                   users.account_name AS u_account_name,
-                   users.num_sell_items AS u_num_sell_items,
+                   sellers.account_name AS seller_u_account_name,
+                   sellers.num_sell_items AS seller_u_num_sell_items,
+                   buyers.account_name AS buyer_u_account_name,
+                   buyers.num_sell_items AS buyer_u_num_sell_items,
                    categories.parent_id AS c_parent_id,
                    categories.category_name AS c_category_name,
                    parent_categories.category_name AS parent_c_category_name
             FROM `items`
-            LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+            LEFT JOIN `users` AS `sellers` ON `items`.`seller_id` = `sellers`.`id`
+            LEFT JOIN `users` AS `buyers` ON `items`.`buyer_id` = `buyers`.`id`
             LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
             LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
             WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?)
@@ -399,13 +420,16 @@ module Isucari
         begin
           sql = <<-EOS
             SELECT items.*,
-                   users.account_name AS u_account_name,
-                   users.num_sell_items AS u_num_sell_items,
+                   sellers.account_name AS seller_u_account_name,
+                   sellers.num_sell_items AS seller_u_num_sell_items,
+                   buyers.account_name AS buyer_u_account_name,
+                   buyers.num_sell_items AS buyer_u_num_sell_items,
                    categories.parent_id AS c_parent_id,
                    categories.category_name AS c_category_name,
                    parent_categories.category_name AS parent_c_category_name
             FROM `items`
-            LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+            LEFT JOIN `users` AS `sellers` ON `items`.`seller_id` = `sellers`.`id`
+            LEFT JOIN `users` AS `buyers` ON `items`.`buyer_id` = `buyers`.`id`
             LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
             LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
             WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?)
@@ -422,8 +446,8 @@ module Isucari
       end
 
       item_details = items.map do |item|
-        seller = get_user_from_item_of_new_items_query(item)
-        if item['u_account_name'].nil?
+        seller = get_seller_from_item(item)
+        if item['seller_u_account_name'].nil?
           db.query('ROLLBACK')
           halt_with_error 404, 'seller not found'
         end
@@ -454,11 +478,11 @@ module Isucari
         }
 
         if item['buyer_id'] != 0
-          buyer = get_user_simple_by_id(item['buyer_id'])
-          if buyer.nil?
+          if item['buyer_u_account_name']
             db.query('ROLLBACK')
             halt_with_error 404, 'buyer not found'
           end
+          buyer = get_buyer_from_item(item)
 
           item_detail['buyer_id'] = item['buyer_id']
           item_detail['buyey'] = buyer
