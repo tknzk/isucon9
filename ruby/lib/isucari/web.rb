@@ -380,10 +380,16 @@ module Isucari
       end
 
       shipment_service_url = get_shipment_service_url
-      categories = db.xquery("SElECT * FROM `categories` WHERE `id` IN (?)", items.map { |i| i['category_id'] })
-      sellers = db.xquery("SElECT * FROM `users` WHERE `id` IN (?)", items.map { |i| i['seller_id'] })
-      transaction_evidences = db.xquery("SELECT * FROM `transaction_evidences` WHERE `item_id` IN (?)", items.map { |i| i['id'] })
-      shippings = db.xquery("SELECT * FROM `shippings` WHERE `transaction_evidence_id` IN (?)", transaction_evidences.map { |t| t['id'] })
+      category_ids = items.map { |i| i['category_id'] }
+      seller_ids = items.map { |i| i['seller_id'] }
+      item_ids = items.map { |i| i['id'] }
+
+      categories = category_ids.empty? ? [] : db.xquery("SELECT * FROM `categories` WHERE `id` IN (?)", category_ids)
+      sellers = seller_ids.empty? ? [] : db.xquery("SElECT * FROM `users` WHERE `id` IN (?)", seller_ids)
+      transaction_evidences = item_ids.empty? ? [] : db.xquery("SELECT * FROM `transaction_evidences` WHERE `item_id` IN (?)", item_ids)
+
+      transaction_evidence_ids = transaction_evidences.map { |t| t['id'] }
+      shippings = transaction_evidence_ids.empty? ? [] : db.xquery("SELECT * FROM `shippings` WHERE `transaction_evidence_id` IN (?)", transaction_evidence_ids)
 
       item_details = items.map do |item|
         seller = sellers.find { |s| s['id'] = item['seller_id'] }
