@@ -1265,7 +1265,12 @@ module Isucari
       response['user'] = user unless user.nil?
       response['payment_service_url'] = get_payment_service_url
 
-      categories = db.xquery('SELECT * FROM `categories`').to_a
+      if session['categories'].nil?
+        categories = db.xquery('SELECT * FROM `categories`').to_a
+        session['categories'] = categories
+      else
+        categories = session['categories']
+      end
       response['categories'] = categories
 
       response.to_json
