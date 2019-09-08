@@ -379,9 +379,14 @@ module Isucari
                    users.num_sell_items AS u_num_sell_items,
                    categories.parent_id AS c_parent_id,
                    categories.category_name AS c_category_name,
-                   parent_categories.category_name AS parent_c_category_name
+                   parent_categories.category_name AS parent_c_category_name,
+                   transaction_evidences.id AS te_id,
+                   transaction_evidences.status AS te_status,
+                   shippings.reserve_id AS s_reserve_id
             FROM `items`
             LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+            LEFT JOIN `transaction_evidences` ON `items`.`id` = `transaction_evidences`.`item_id`
+            LEFT JOIN `shippings` ON `transaction_evidences`.`id` = `shippings`.`transaction_evidence_id`
             LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
             LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
             WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?)
@@ -405,9 +410,14 @@ module Isucari
                    users.num_sell_items AS u_num_sell_items,
                    categories.parent_id AS c_parent_id,
                    categories.category_name AS c_category_name,
-                   parent_categories.category_name AS parent_c_category_name
+                   parent_categories.category_name AS parent_c_category_name,
+                   transaction_evidences.id AS te_id,
+                   transaction_evidences.status AS te_status,
+                   shippings.reserve_id AS s_reserve_id
             FROM `items`
             LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+            LEFT JOIN `transaction_evidences` ON `items`.`id` = `transaction_evidences`.`item_id`
+            LEFT JOIN `shippings` ON `transaction_evidences`.`id` = `shippings`.`transaction_evidence_id`
             LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
             LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
             WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?)
@@ -466,23 +476,21 @@ module Isucari
           item_detail['buyey'] = buyer
         end
 
-        transaction_evidence = db.xquery('SELECT * FROM `transaction_evidences` WHERE `item_id` = ?', item['id']).first
-        unless transaction_evidence.nil?
-          shipping = db.xquery('SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?', transaction_evidence['id']).first
-          if shipping.nil?
+        unless item['te_status'].nil?
+          if item['s_reserve_id'].nil?
             db.query('ROLLBACK')
             halt_with_error 404, 'shipping not found'
           end
 
           ssr = begin
-            api_client.shipment_status(get_shipment_service_url, 'reserve_id' => shipping['reserve_id'])
+            api_client.shipment_status(get_shipment_service_url, 'reserve_id' => item['s_reserve_id'])
           rescue
             db.query('ROLLBACK')
             halt_with_error 500, 'failed to request to shipment service'
           end
 
-          item_detail['transaction_evidence_id'] = transaction_evidence['id']
-          item_detail['transaction_evidence_status'] = transaction_evidence['status']
+          item_detail['transaction_evidence_id'] = item['te_id']
+          item_detail['transaction_evidence_status'] = item['te_status']
           item_detail['shipping_status'] = ssr['status']
         end
 
