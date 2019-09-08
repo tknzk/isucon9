@@ -131,6 +131,25 @@ module Isucari
         "/upload/#{image_name}"
       end
 
+      # '/new_items' 専用
+      def get_user_from_item_of_new_items_query(item)
+        {
+          'id' => item['seller_id'],
+          'account_name' => item['u_account_name'],
+          'num_sell_items' => item['u_num_sell_items'],
+        }
+      end
+
+      # '/new_items' 専用
+      def get_category_from_item_of_new_items_query(item)
+        {
+          'id' => item['category_id'],
+          'parent_id' => item['c_parent_id'],
+          'category_name' => item['c_category_name'],
+          'parent_category_name' => item['parent_c_category_name'],
+        }
+      end
+
       def body_params
         @body_params ||= JSON.parse(request.body.tap(&:rewind).read)
       end
@@ -212,21 +231,10 @@ module Isucari
 
       item_simples = items.map do |item|
         halt_with_error 404, 'seller not found' if item['u_account_name'].nil?
-        seller = {
-          'id' => item['seller_id'],
-          'account_name' => item['u_account_name'],
-          'num_sell_items' => item['u_num_sell_items'],
-        }
+        seller = get_user_from_item_of_new_items_query(item)
+        halt_with_error 404, 'category not found' if item['c_category_name'].nil?
+        category = get_category_from_item_of_new_items_query(item)
 
-        halt_with_error 404, 'category not found' if item['parent_c_category_name'].nil?
-        category = {
-          'id' => item['category_id'],
-          'parent_id' => item['c_parent_id'],
-          'category_name' => item['c_category_name'],
-          'parent_category_name' => item['parent_c_category_name'],
-        }
-
-        # itemを返す
         {
           'id' => item['id'],
           'seller_id' => item['seller_id'],
@@ -269,17 +277,50 @@ module Isucari
       created_at = params['created_at'].to_i
 
       items = if item_id > 0 && created_at > 0
-        db.xquery("SELECT * FROM `items` WHERE `status` IN (?, ?) AND category_id IN (?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY `created_at` DESC, `id` DESC LIMIT #{ITEMS_PER_PAGE + 1}", ITEM_STATUS_ON_SALE, ITEM_STATUS_SOLD_OUT, category_ids, Time.at(created_at), Time.at(created_at), item_id)
+        sql = <<-EOS
+          SELECT items.*,
+                 users.account_name AS u_account_name,
+                 users.num_sell_items AS u_num_sell_items,
+                 categories.parent_id AS c_parent_id,
+                 categories.category_name AS c_category_name,
+                 parent_categories.category_name AS parent_c_category_name
+          FROM `items`
+          LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+          LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
+          LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
+          WHERE `items`.`status` IN (?, ?)
+            AND `items`.category_id IN (?)
+            AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?))
+            ORDER BY `items`.`created_at` DESC, `items`.`id` DESC
+            LIMIT #{ITEMS_PER_PAGE + 1}
+        EOS
+        db.xquery(sql, ITEM_STATUS_ON_SALE, ITEM_STATUS_SOLD_OUT, category_ids, Time.at(created_at), Time.at(created_at), item_id)
       else
-        db.xquery("SELECT * FROM `items` WHERE `status` IN (?,?) AND category_id IN (?) ORDER BY `created_at` DESC, `id` DESC LIMIT #{ITEMS_PER_PAGE + 1}", ITEM_STATUS_ON_SALE, ITEM_STATUS_SOLD_OUT, category_ids)
+        sql = <<-EOS
+          SELECT items.*,
+                 users.account_name AS u_account_name,
+                 users.num_sell_items AS u_num_sell_items,
+                 categories.parent_id AS c_parent_id,
+                 categories.category_name AS c_category_name,
+                 parent_categories.category_name AS parent_c_category_name
+          FROM `items`
+          LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+          LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
+          LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
+          WHERE `status` IN (?,?)
+          AND category_id IN (?)
+          ORDER BY `created_at` DESC, `id`
+          DESC LIMIT #{ITEMS_PER_PAGE + 1}
+        EOS
+        db.xquery(sql, ITEM_STATUS_ON_SALE, ITEM_STATUS_SOLD_OUT, category_ids)
       end
 
       item_simples = items.map do |item|
-        seller = get_user_simple_by_id(item['seller_id'])
-        halt_with_error 404, 'seller not found' if seller.nil?
+        halt_with_error 404, 'seller not found' if item['u_account_name'].nil?
+        seller = get_user_from_item_of_new_items_query(item)
 
-        category = get_category_by_id(item['category_id'])
-        halt_with_error 404, 'category not found' if category.nil?
+        halt_with_error 404, 'category not found' if item['c_category_name'].nil?
+        category = get_category_from_item_of_new_items_query(item)
 
         {
           'id' => item['id'],
