@@ -5,7 +5,8 @@ Description = isucon9 qualifier main application in ruby
 WorkingDirectory=/home/isucon/isucari/webapp/ruby
 EnvironmentFile=/home/isucon/env.sh
 
-ExecStart = /home/isucon/local/ruby/bin/bundle exec rackup -p 8000
+# ExecStart = /home/isucon/local/ruby/bin/bundle exec rackup -p 8000
+ExecStart = /home/isucon/local/ruby/bin/bundle exec rackup -o /home/isucon/isucari.sock
 
 Restart   = always
 Type      = simple
