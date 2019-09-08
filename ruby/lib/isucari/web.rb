@@ -131,6 +131,25 @@ module Isucari
         "/upload/#{image_name}"
       end
 
+      # '/new_items' 専用
+      def get_user_from_item_of_new_items_query(item)
+        {
+          'id' => item['seller_id'],
+          'account_name' => item['u_account_name'],
+          'num_sell_items' => item['u_num_sell_items'],
+        }
+      end
+
+      # '/new_items' 専用
+      def get_category_from_item_of_new_items_query(item)
+        {
+          'id' => item['category_id'],
+          'parent_id' => item['c_parent_id'],
+          'category_name' => item['c_category_name'],
+          'parent_category_name' => item['parent_c_category_name'],
+        }
+      end
+
       def body_params
         @body_params ||= JSON.parse(request.body.tap(&:rewind).read)
       end
@@ -212,21 +231,10 @@ module Isucari
 
       item_simples = items.map do |item|
         halt_with_error 404, 'seller not found' if item['u_account_name'].nil?
-        seller = {
-          'id' => item['seller_id'],
-          'account_name' => item['u_account_name'],
-          'num_sell_items' => item['u_num_sell_items'],
-        }
-
+        seller = get_user_from_new_items(item)
         halt_with_error 404, 'category not found' if item['parent_c_category_name'].nil?
-        category = {
-          'id' => item['category_id'],
-          'parent_id' => item['c_parent_id'],
-          'category_name' => item['c_category_name'],
-          'parent_category_name' => item['parent_c_category_name'],
-        }
+        category = get_category_from_item_of_new_items_query(item)
 
-        # itemを返す
         {
           'id' => item['id'],
           'seller_id' => item['seller_id'],
