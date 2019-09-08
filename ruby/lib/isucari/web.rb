@@ -398,11 +398,21 @@ module Isucari
         db.xquery("SELECT * FROM `items` WHERE `seller_id` = ? AND `status` IN (?, ?, ?) ORDER BY `created_at` DESC, `id` DESC LIMIT #{ITEMS_PER_PAGE + 1}", user_simple['id'], ITEM_STATUS_ON_SALE, ITEM_STATUS_TRADING, ITEM_STATUS_SOLD_OUT)
       end
 
+      categories = {}
+
       item_simples = items.map do |item|
         seller = user_simple['id'] == item['seller_id'] ? user_simple : get_user_simple_by_id(item['seller_id'])
         halt_with_error 404, 'seller not found' if seller.nil?
 
-        category = get_category_by_id(item['category_id'])
+        category = if categories[item['category_id']].nil?
+                     c = get_category_by_id(item['category_id'])
+                     categories[item['category_id']] = c
+
+                     c
+                   else
+                     categories[item['category_id']]
+                   end
+
         halt_with_error 404, 'category not found' if category.nil?
 
         {
