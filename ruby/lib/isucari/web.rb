@@ -378,20 +378,14 @@ module Isucari
         end
       end
 
-      shipment_service_url = get_shipment_service_url
-      categories = db.xquery("SElECT * FROM `categories` WHERE `id` IN (?)", items.map { |i| i['category_id'] })
-      sellers = db.xquery("SElECT * FROM `users` WHERE `id` IN (?)", items.map { |i| i['seller_id'] })
-      transaction_evidences = db.xquery("SELECT * FROM `transaction_evidences` WHERE `item_id` IN (?)", items.map { |i| i['id'] })
-      shippings = db.xquery("SELECT * FROM `shippings` WHERE `transaction_evidence_id` IN (?)", transaction_evidences.map { |t| t['id'] })
-
       item_details = items.map do |item|
-        seller = sellers.find { |s| s['id'] = item['seller_id'] }
+        seller = get_user_simple_by_id(item['seller_id'])
         if seller.nil?
           db.query('ROLLBACK')
           halt_with_error 404, 'seller not found'
         end
 
-        category = categories.find { |c| c['id'] == item['category_id'] }
+        category = get_category_by_id(item['category_id'])
         if category.nil?
           db.query('ROLLBACK')
           halt_with_error 404, 'category not found'
@@ -417,15 +411,7 @@ module Isucari
         }
 
         if item['buyer_id'] != 0
-          buyer = if item['buyer_id'] == user['id']
-                    {
-                        'id' => user['id'],
-                        'account_name' => user['account_name'],
-                        'num_sell_items' => user['num_sell_items']
-                    }
-                  else
-                    get_user_simple_by_id(item['buyer_id'])
-                  end
+          buyer = get_user_simple_by_id(item['buyer_id'])
           if buyer.nil?
             db.query('ROLLBACK')
             halt_with_error 404, 'buyer not found'
@@ -435,16 +421,16 @@ module Isucari
           item_detail['buyey'] = buyer
         end
 
-        transaction_evidence = transaction_evidences.find { |t| t['item_id'] == item['id'] }
+        transaction_evidence = db.xquery('SELECT * FROM `transaction_evidences` WHERE `item_id` = ?', item['id']).first
         unless transaction_evidence.nil?
-          shipping = shippings.find { |s| s['transaction_evidence_id'] == transaction_evidence['id'] }
+          shipping = db.xquery('SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?', transaction_evidence['id']).first
           if shipping.nil?
             db.query('ROLLBACK')
             halt_with_error 404, 'shipping not found'
           end
 
           ssr = begin
-            api_client.shipment_status(shipment_service_url, 'reserve_id' => shipping['reserve_id'])
+            api_client.shipment_status(get_shipment_service_url, 'reserve_id' => shipping['reserve_id'])
           rescue
             db.query('ROLLBACK')
             halt_with_error 500, 'failed to request to shipment service'
