@@ -385,7 +385,7 @@ module Isucari
       item_ids = items.map { |i| i['id'] }
 
       categories = category_ids.empty? ? [] : db.xquery("SELECT * FROM `categories` WHERE `id` IN (?)", category_ids)
-      sellers = seller_ids.empty? ? [] : db.xquery("SELECT * FROM `users` WHERE `id` IN (?)", seller_ids)
+      sellers = seller_ids.empty? ? [] : db.xquery("SElECT * FROM `users` WHERE `id` IN (?)", seller_ids)
       transaction_evidences = item_ids.empty? ? [] : db.xquery("SELECT * FROM `transaction_evidences` WHERE `item_id` IN (?)", item_ids)
 
       transaction_evidence_ids = transaction_evidences.map { |t| t['id'] }
