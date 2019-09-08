@@ -5,6 +5,7 @@ require 'mysql2'
 require 'mysql2-cs-bind'
 require 'bcrypt'
 require 'isucari/api'
+require 'logger'
 
 module Isucari
   class Web < Sinatra::Base
@@ -40,11 +41,21 @@ module Isucari
 
     BCRYPT_COST = 10
 
+    ::Logger.class_eval { alias :write :'<<' }
+    access_log = ::File.join(::File.dirname(::File.expand_path(__FILE__)),'..','logs','access.log')
+    access_logger = ::Logger.new(access_log)
+    error_logger = ::File.new(::File.join(::File.dirname(::File.expand_path(__FILE__)),'..','logs','error.log'),"a+")
+    error_logger.sync = true
+
     configure :development do
       require 'sinatra/reloader'
       register Sinatra::Reloader
       enable :logging
+      use ::Rack::CommonLogger, access_logger
     end
+    before {
+      env["rack.errors"] =  error_logger
+    }
 
     set :add_charset, ['application/json']
     set :public_folder, File.join(__dir__, '..', '..', 'public')
