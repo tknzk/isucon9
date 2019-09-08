@@ -367,7 +367,7 @@ module Isucari
           sql = <<-EOS
             SELECT items.*,
                    users.account_name AS u_account_name,
-                   users.num_sell_items AS u_num_sell_items
+                   users.num_sell_items AS u_num_sell_items,
                    categories.parent_id AS c_parent_id,
                    categories.category_name AS c_category_name,
                    parent_categories.category_name AS parent_c_category_name
@@ -393,7 +393,7 @@ module Isucari
           sql = <<-EOS
             SELECT items.*,
                    users.account_name AS u_account_name,
-                   users.num_sell_items AS u_num_sell_items
+                   users.num_sell_items AS u_num_sell_items,
                    categories.parent_id AS c_parent_id,
                    categories.category_name AS c_category_name,
                    parent_categories.category_name AS parent_c_category_name
