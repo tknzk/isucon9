@@ -173,17 +173,47 @@ module Isucari
 
       items = if item_id > 0 && created_at > 0
         # paging
-        db.xquery("SELECT * FROM `items` WHERE `status` IN (?, ?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY `created_at` DESC, `id` DESC LIMIT #{ITEMS_PER_PAGE + 1}", ITEM_STATUS_ON_SALE, ITEM_STATUS_SOLD_OUT, Time.at(created_at), Time.at(created_at), item_id)
+        sql = <<-EOS
+          SELECT items.*,
+                 categories.parent_id AS c_parent_id,
+                 categories.category_name AS c_category_name,
+                 parent_categories.category_name AS parent_c_category_name
+          FROM `items`
+          INNER JOIN `categories` ON `items`.`category_id` = `categories`.`parent_id`
+          INNER JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
+          WHERE `status` IN (?, ?)
+            AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?))
+          ORDER BY `items`.`created_at` DESC, `items`.`id` DESC
+          LIMIT #{ITEMS_PER_PAGE + 1}
+        EOS
+        db.xquery(sql, ITEM_STATUS_ON_SALE, ITEM_STATUS_SOLD_OUT, Time.at(created_at), Time.at(created_at), item_id)
       else
         # 1st page
-        db.xquery("SELECT * FROM `items` WHERE `status` IN (?, ?) ORDER BY `created_at` DESC, `id` DESC LIMIT #{ITEMS_PER_PAGE + 1}", ITEM_STATUS_ON_SALE, ITEM_STATUS_SOLD_OUT)
+        sql = <<-EOS
+          SELECT items.*,
+                 categories.parent_id AS c_parent_id,
+                 categories.category_name AS c_category_name,
+                 parent_categories.category_name AS parent_c_category_name
+          FROM `items`
+          INNER JOIN `categories` ON `items`.`category_id` = `categories`.`id`
+          INNER JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
+          WHERE `status` IN (?, ?)
+          ORDER BY `items`.`created_at` DESC, `items`.`id` DESC
+          LIMIT #{ITEMS_PER_PAGE + 1}
+        EOS
+        db.xquery(sql, ITEM_STATUS_ON_SALE, ITEM_STATUS_SOLD_OUT)
       end
 
       item_simples = items.map do |item|
         seller = get_user_simple_by_id(item['seller_id'])
         halt_with_error 404, 'seller not found' if seller.nil?
 
-        category = get_category_by_id(item['category_id'])
+        category = {
+          'id' => item['category_id'],
+          'parent_id' => item['c_parent_id'],
+          'category_name' => item['c_category_name'],
+          'parent_category_name' => item['parent_c_category_name'],
+        }
         halt_with_error 404, 'category not found' if category.nil?
 
         {
