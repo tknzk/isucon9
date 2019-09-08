@@ -368,8 +368,13 @@ module Isucari
             SELECT items.*,
                    users.account_name AS u_account_name,
                    users.num_sell_items AS u_num_sell_items
+                   categories.parent_id AS c_parent_id,
+                   categories.category_name AS c_category_name,
+                   parent_categories.category_name AS parent_c_category_name
             FROM `items`
             LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+            LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
+            LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
             WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?)
               AND `items`.`status` IN (?, ?, ?, ?, ?)
               AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?))
@@ -389,8 +394,13 @@ module Isucari
             SELECT items.*,
                    users.account_name AS u_account_name,
                    users.num_sell_items AS u_num_sell_items
+                   categories.parent_id AS c_parent_id,
+                   categories.category_name AS c_category_name,
+                   parent_categories.category_name AS parent_c_category_name
             FROM `items`
             LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+            LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
+            LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
             WHERE (`items`.`seller_id` = ? OR `items`.`buyer_id` = ?)
               AND `items`.`status` IN (?, ?, ?, ?, ?)
             ORDER BY `items`.`created_at` DESC, `items`.`id` DESC
@@ -411,8 +421,8 @@ module Isucari
           halt_with_error 404, 'seller not found'
         end
 
-        category = get_category_by_id(item['category_id'])
-        if category.nil?
+        category = get_category_from_item_of_new_items_query(item)
+        if item['c_category_name'].nil?
           db.query('ROLLBACK')
           halt_with_error 404, 'category not found'
         end
