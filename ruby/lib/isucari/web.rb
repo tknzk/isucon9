@@ -175,12 +175,15 @@ module Isucari
         # paging
         sql = <<-EOS
           SELECT items.*,
+                 users.account_name AS u_account_name,
+                 users.num_sell_items AS u_num_sell_items,
                  categories.parent_id AS c_parent_id,
                  categories.category_name AS c_category_name,
                  parent_categories.category_name AS parent_c_category_name
           FROM `items`
-          INNER JOIN `categories` ON `items`.`category_id` = `categories`.`parent_id`
-          INNER JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
+          LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+          LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`parent_id`
+          LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
           WHERE `status` IN (?, ?)
             AND (`items`.`created_at` < ?  OR (`items`.`created_at` <= ? AND `items`.`id` < ?))
           ORDER BY `items`.`created_at` DESC, `items`.`id` DESC
@@ -191,12 +194,15 @@ module Isucari
         # 1st page
         sql = <<-EOS
           SELECT items.*,
+                 users.account_name AS u_account_name,
+                 users.num_sell_items AS u_num_sell_items,
                  categories.parent_id AS c_parent_id,
                  categories.category_name AS c_category_name,
                  parent_categories.category_name AS parent_c_category_name
           FROM `items`
-          INNER JOIN `categories` ON `items`.`category_id` = `categories`.`id`
-          INNER JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
+          LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+          LEFT JOIN `categories` ON `items`.`category_id` = `categories`.`id`
+          LEFT JOIN `categories` AS `parent_categories` ON `categories`.`parent_id` = `parent_categories`.`id`
           WHERE `status` IN (?, ?)
           ORDER BY `items`.`created_at` DESC, `items`.`id` DESC
           LIMIT #{ITEMS_PER_PAGE + 1}
@@ -205,17 +211,22 @@ module Isucari
       end
 
       item_simples = items.map do |item|
-        seller = get_user_simple_by_id(item['seller_id'])
-        halt_with_error 404, 'seller not found' if seller.nil?
+        halt_with_error 404, 'seller not found' if item['u_account_name'].nil?
+        seller = {
+          'id' => item['seller_id'],
+          'account_name' => item['u_account_name'],
+          'num_sell_items' => item['u_num_sell_items'],
+        }
 
+        halt_with_error 404, 'category not found' if item['parent_c_category_name'].nil?
         category = {
           'id' => item['category_id'],
           'parent_id' => item['c_parent_id'],
           'category_name' => item['c_category_name'],
           'parent_category_name' => item['parent_c_category_name'],
         }
-        halt_with_error 404, 'category not found' if category.nil?
 
+        # itemを返す
         {
           'id' => item['id'],
           'seller_id' => item['seller_id'],
