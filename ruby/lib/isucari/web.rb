@@ -43,6 +43,7 @@ module Isucari
     configure :development do
       require 'sinatra/reloader'
       register Sinatra::Reloader
+      enable :logging
     end
 
     set :add_charset, ['application/json']
@@ -1287,7 +1288,7 @@ module Isucari
     # getReports
     get '/reports.json' do
       transaction_evidences = db.xquery('SELECT * FROM `transaction_evidences` WHERE `id` > 15007')
-      
+
       response = transaction_evidences.map do |transaction_evidence|
         {
           'id' => transaction_evidence['id'],
