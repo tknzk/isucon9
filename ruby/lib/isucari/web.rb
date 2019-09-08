@@ -364,7 +364,19 @@ module Isucari
       items = if item_id > 0 && created_at > 0
         # paging
         begin
-          db.xquery("SELECT * FROM `items` WHERE (`seller_id` = ? OR `buyer_id` = ?) AND `status` IN (?, ?, ?, ?, ?) AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?)) ORDER BY `created_at` DESC, `id` DESC LIMIT #{TRANSACTIONS_PER_PAGE + 1}", user['id'], user['id'], ITEM_STATUS_ON_SALE, ITEM_STATUS_TRADING, ITEM_STATUS_SOLD_OUT, ITEM_STATUS_CANCEL, ITEM_STATUS_STOP, Time.at(created_at), Time.at(created_at), item_id)
+          sql = <<-EOS
+            SELECT items.*,
+                   users.account_name AS u_account_name,
+                   users.num_sell_items AS u_num_sell_items
+            FROM `items`
+            LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+            WHERE (`seller_id` = ? OR `buyer_id` = ?)
+              AND `status` IN (?, ?, ?, ?, ?)
+              AND (`created_at` < ?  OR (`created_at` <= ? AND `id` < ?))
+              ORDER BY `created_at` DESC, `id` DESC
+              LIMIT #{TRANSACTIONS_PER_PAGE + 1}
+          EOS
+          db.xquery(sql, user['id'], user['id'], ITEM_STATUS_ON_SALE, ITEM_STATUS_TRADING, ITEM_STATUS_SOLD_OUT, ITEM_STATUS_CANCEL, ITEM_STATUS_STOP, Time.at(created_at), Time.at(created_at), item_id)
         rescue => e
           logger.info(e.messages)
           db.query('ROLLBACK')
@@ -373,7 +385,18 @@ module Isucari
       else
         # 1st page
         begin
-          db.xquery("SELECT * FROM `items` WHERE (`seller_id` = ? OR `buyer_id` = ?) AND `status` IN (?, ?, ?, ?, ?) ORDER BY `created_at` DESC, `id` DESC LIMIT #{TRANSACTIONS_PER_PAGE + 1}", user['id'], user['id'], ITEM_STATUS_ON_SALE, ITEM_STATUS_TRADING, ITEM_STATUS_SOLD_OUT, ITEM_STATUS_CANCEL, ITEM_STATUS_STOP)
+          sql = <<-EOS
+            SELECT items.*,
+                   users.account_name AS u_account_name,
+                   users.num_sell_items AS u_num_sell_items
+            FROM `items`
+            LEFT JOIN `users` ON `items`.`seller_id` = `users`.`id`
+            WHERE (`seller_id` = ? OR `buyer_id` = ?)
+              AND `status` IN (?, ?, ?, ?, ?)
+            ORDER BY `created_at` DESC, `id` DESC
+            LIMIT #{TRANSACTIONS_PER_PAGE + 1}
+          EOS
+          db.xquery(sql, user['id'], user['id'], ITEM_STATUS_ON_SALE, ITEM_STATUS_TRADING, ITEM_STATUS_SOLD_OUT, ITEM_STATUS_CANCEL, ITEM_STATUS_STOP)
         rescue => e
           logger.info(e.messages)
           db.query('ROLLBACK')
@@ -382,8 +405,8 @@ module Isucari
       end
 
       item_details = items.map do |item|
-        seller = get_user_simple_by_id(item['seller_id'])
-        if seller.nil?
+        seller = get_user_from_item_of_new_items_query(item)
+        if item['u_account_name'].nil?
           db.query('ROLLBACK')
           halt_with_error 404, 'seller not found'
         end
