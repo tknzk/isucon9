@@ -93,8 +93,10 @@ module Isucari
 
       def get_category_by_id(category_id)
         categories = if session['categories'].nil?
-                       db.xquery('SELECT * FROM `categories`').to_a
+                       c = db.xquery('SELECT * FROM `categories`').to_a
                        session['categories'] = categories
+
+                       c
                      else
                        session['categories']
                      end
