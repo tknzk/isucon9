@@ -8,5 +8,4 @@ gem 'bcrypt'
 
 group :development do
   gem 'sinatra-contrib'
-  gem 'mysql2-client-general_log', github: 'abcang/mysql2-client-general_log', branch: 'rack_middleware'
 end
