@@ -6,8 +6,7 @@ WorkingDirectory=/home/isucon/isucari/webapp/ruby
 EnvironmentFile=/home/isucon/env.sh
 
 # ExecStart = /home/isucon/local/ruby/bin/bundle exec rackup -p 8000
-ExecStart = /home/isucon/local/ruby/bin/bundle exec rackup -o /tmp/isucari.socket
-# ExecStart = /home/isucon/local/ruby/bin/bundle exec rackup -o -E production /tmp/isucari.socket
+ExecStart = /home/isucon/local/ruby/bin/bundle exec rackup -o /home/isucon/isucari.sock
 
 Restart   = always
 Type      = simple
